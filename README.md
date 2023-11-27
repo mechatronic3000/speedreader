@@ -1,7 +1,6 @@
 # speedreader
-This is a program to view text files using the RSVP (Rapid Serial Visual Presentation.)
-
-Instead of a page of text you are presented one word at a time in rapid succession. You can adjust reading speed up and down and pause.
+This is a program to view text files using one word at a time in rapid succession. Instead of the traditional way of reading, this displays one word at a time in rapid succession. 
+The speed is adjustable and is adaptive to the length of the word.  Your place is automatically saved when you exit the application or even when you switch text files. You change the font. The size and color of the font are also adjustable.
 
 
 #Credit
