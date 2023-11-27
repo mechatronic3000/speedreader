@@ -10,11 +10,11 @@ Frankenstein; Or, The Modern Prometheus by Mary Wollstonecraft Shelley
 and
 Dracula by Bram Stoker
 
-Icons
+**Icons**
 
 Kenny https://www.kenney.nl/
 
-Font
+**Font**
 
 https://fontlibrary.org/
 
