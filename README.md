@@ -1,5 +1,5 @@
 # speedreader
-This is a program to view text files using the RSVP (Rapid Visual Serial Presentation.)
+This is a program to view text files using the RSVP (Rapid Serial Visual Presentation.)
 
 Instead of a page of text you are presented one word at a time in rapid succession. You can adjust reading speed up and down and pause.
 
