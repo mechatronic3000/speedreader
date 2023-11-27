@@ -6,6 +6,8 @@ The speed is adjustable and is adaptive to the length of the word.  Your place 
 # Credit
 **Books**
 
+---
+
 Two books are provided by Project Gutenberg https://www.gutenberg.org
 
 Frankenstein; Or, The Modern Prometheus by Mary Wollstonecraft Shelley
@@ -14,11 +16,17 @@ Dracula by Bram Stoker
 
 **Icons**
 
+---
+
 Kenny https://www.kenney.nl/
 
 **Font**
 
+---
+
 https://fontlibrary.org/
+
+---
 
 ![SCREENSHOT](https://github.com/mechatronic3000/speedreader/blob/main//screenshot1.png)
 ![SCREENSHOT](https://github.com/mechatronic3000/speedreader/blob/main//screenshot2.png)
