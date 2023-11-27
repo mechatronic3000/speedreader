@@ -4,10 +4,12 @@ The speed is adjustable and is adaptive to the length of the word.  Your place 
 
 
 # Credit
+**Books**
+
 Two books are provided by Project Gutenberg https://www.gutenberg.org
 
 Frankenstein; Or, The Modern Prometheus by Mary Wollstonecraft Shelley
-and
+
 Dracula by Bram Stoker
 
 **Icons**
