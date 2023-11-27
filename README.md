@@ -6,7 +6,7 @@ The speed is adjustable and is adaptive to the length of the word.  Your place 
 # Credit
 **Books**
 
--
+---
 
 Two books are provided by Project Gutenberg https://www.gutenberg.org
 
@@ -16,15 +16,15 @@ Dracula by Bram Stoker
 
 **Icons**
 
--
+---
 
 Kenny https://www.kenney.nl/
 
---
+---
 
 **Font**
 
--
+---
 
 https://fontlibrary.org/
 
