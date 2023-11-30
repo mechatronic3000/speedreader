@@ -25,6 +25,11 @@ TYPE tFONT
   directory AS STRING * 128
 END TYPE
 
+TYPE tGUICONTROL
+  img AS LONG
+  toolTip AS STRING * 32
+END TYPE
+
 TYPE tGLOBALS
   font AS tFONT
   status AS LONG
@@ -66,7 +71,7 @@ CONST cGUI_FONT_CHANGE = 17
 DIM SHARED AS tGLOBALS __g ' Global Variables
 DIM SHARED AS STRING __fileText
 DIM SHARED AS tTXTSEGMENT __words(0)
-DIM SHARED AS LONG __guiImg(20)
+DIM SHARED AS tGUICONTROL __gui(20)
 
 
 main
@@ -173,7 +178,7 @@ END SUB
 
 SUB drawGUI
   DIM AS LONG guiPx, guiPy
-  guiPx = _WIDTH / 2 - (_WIDTH(__guiImg(cGUI_PLAY)) / 2)
+  guiPx = _WIDTH / 2 - (_WIDTH(__gui(cGUI_PLAY).img) / 2)
   guiPy = _HEIGHT - 160
   drawGuiButton cGUI_PREVIOUS, guiPx - 100, guiPy
   IF _READBIT(__g.status, cPAUSE) THEN
@@ -285,7 +290,7 @@ SUB handleInput (indx AS LONG, sp AS LONG)
     __g.mouse.b1 = _MOUSEBUTTON(1)
   LOOP
   __g.mouse.b1PE = __g.mouse.b1 AND NOT __g.mouse.b1L
-  _SOURCE __guiImg(cGUI_MOUSE)
+  _SOURCE __gui(cGUI_MOUSE).img
   p = _RED32(POINT(__g.mouse.x, __g.mouse.y))
   __g.mouse.hover = p
   _SOURCE 0
@@ -572,26 +577,25 @@ FUNCTION UTF~& (s AS STRING, index AS INTEGER)
 END FUNCTION
 
 SUB initGui
-  __guiImg(cGUI_EXIT) = _LOADIMAGE(_CWD$ + "/Assets/exit.png", 32)
-  __guiImg(cGUI_NEXT) = _LOADIMAGE(_CWD$ + "/Assets/next.png", 32)
-  __guiImg(cGUI_PAUSE) = _LOADIMAGE(_CWD$ + "/Assets/pause.png", 32)
-  __guiImg(cGUI_PREVIOUS) = _LOADIMAGE(_CWD$ + "/Assets/previous.png", 32)
-  __guiImg(cGUI_REWIND) = _LOADIMAGE(_CWD$ + "/Assets/rewind.png", 32)
-  __guiImg(cGUI_PLAY) = _LOADIMAGE(_CWD$ + "/Assets/right.png", 32)
-  __guiImg(cGUI_LOAD) = _LOADIMAGE(_CWD$ + "/Assets/disk.png", 32)
-  __guiImg(cGUI_UP) = _LOADIMAGE(_CWD$ + "/Assets/up.png", 32)
-  __guiImg(cGUI_DOWN) = _LOADIMAGE(_CWD$ + "/Assets/down.png", 32)
-  __guiImg(cGUI_FF) = _LOADIMAGE(_CWD$ + "/Assets/fastForward.png", 32)
-  __guiImg(cGUI_FCOLOR) = _LOADIMAGE(_CWD$ + "/Assets/TEXT1.png", 32)
-  __guiImg(cGUI_BCOLOR) = _LOADIMAGE(_CWD$ + "/Assets/TEXT0.png", 32)
-  __guiImg(cGUI_FF) = _LOADIMAGE(_CWD$ + "/Assets/fastForward.png", 32)
-  __guiImg(cGUI_FONT_SIZE_INCREASE) = _LOADIMAGE(_CWD$ + "/Assets/fontPLUSsmall.png", 32)
-  __guiImg(cGUI_FONT_SIZE_DECREASE) = _LOADIMAGE(_CWD$ + "/Assets/fontMINUSsmall.png", 32)
-  __guiImg(cGUI_FONT_CHANGE) = _LOADIMAGE(_CWD$ + "/Assets/fontChange.png", 32)
+  __gui(cGUI_EXIT).img = _LOADIMAGE(_CWD$ + "/Assets/exit.png", 32): __gui(cGUI_EXIT).toolTip = "Quit"
+  __gui(cGUI_NEXT).img = _LOADIMAGE(_CWD$ + "/Assets/next.png", 32): __gui(cGUI_NEXT).toolTip = "Next Word"
+  __gui(cGUI_PAUSE).img = _LOADIMAGE(_CWD$ + "/Assets/pause.png", 32): __gui(cGUI_PAUSE).toolTip = "Pause"
+  __gui(cGUI_PREVIOUS).img = _LOADIMAGE(_CWD$ + "/Assets/previous.png", 32): __gui(cGUI_PREVIOUS).toolTip = "Previous Word"
+  __gui(cGUI_REWIND).img = _LOADIMAGE(_CWD$ + "/Assets/rewind.png", 32): __gui(cGUI_REWIND).toolTip = "Slower"
+  __gui(cGUI_PLAY).img = _LOADIMAGE(_CWD$ + "/Assets/right.png", 32): __gui(cGUI_PLAY).toolTip = "Play"
+  __gui(cGUI_LOAD).img = _LOADIMAGE(_CWD$ + "/Assets/disk.png", 32): __gui(cGUI_LOAD).toolTip = "Load"
+  __gui(cGUI_UP).img = _LOADIMAGE(_CWD$ + "/Assets/up.png", 32): __gui(cGUI_UP).toolTip = "Not used"
+  __gui(cGUI_DOWN).img = _LOADIMAGE(_CWD$ + "/Assets/down.png", 32): __gui(cGUI_DOWN).toolTip = "Not used"
+  __gui(cGUI_FF).img = _LOADIMAGE(_CWD$ + "/Assets/fastForward.png", 32): __gui(cGUI_FF).toolTip = "Faster"
+  __gui(cGUI_FCOLOR).img = _LOADIMAGE(_CWD$ + "/Assets/TEXT1.png", 32): __gui(cGUI_FCOLOR).toolTip = "Foreground Color"
+  __gui(cGUI_BCOLOR).img = _LOADIMAGE(_CWD$ + "/Assets/TEXT0.png", 32): __gui(cGUI_BCOLOR).toolTip = "Background Color"
+  __gui(cGUI_FONT_SIZE_INCREASE).img = _LOADIMAGE(_CWD$ + "/Assets/fontPLUSsmall.png", 32): __gui(cGUI_FONT_SIZE_INCREASE).toolTip = "Increase Font Size"
+  __gui(cGUI_FONT_SIZE_DECREASE).img = _LOADIMAGE(_CWD$ + "/Assets/fontMINUSsmall.png", 32): __gui(cGUI_FONT_SIZE_DECREASE).toolTip = "Decrease Font Size"
+  __gui(cGUI_FONT_CHANGE).img = _LOADIMAGE(_CWD$ + "/Assets/fontChange.png", 32): __gui(cGUI_FONT_CHANGE).toolTip = "Change Font"
 
-  IF __guiImg(cGUI_EXIT) > -2 THEN PRINT "Did not load images!": END
+  IF __gui(cGUI_EXIT).img > -2 THEN PRINT "Did not load images!": END
 
-  __guiImg(cGUI_MOUSE) = _NEWIMAGE(_WIDTH, _HEIGHT, 32)
+  __gui(cGUI_MOUSE).img = _NEWIMAGE(_WIDTH, _HEIGHT, 32)
 END SUB
 
 SUB saveState
@@ -649,12 +653,19 @@ END SUB
 
 
 SUB drawGuiButton (shape AS LONG, x AS LONG, y AS LONG)
-  _PUTIMAGE (x, y), __guiImg(shape), 0
+  DIM AS LONG xp
+  _PUTIMAGE (x, y), __gui(shape).img, 0
   IF __g.mouse.hover = shape THEN
-    LINE (x, y)-(x + _WIDTH(__guiImg(shape)), y + _HEIGHT(__guiImg(shape))), , B , &B0101010101010101
+    LINE (x, y)-(x + _WIDTH(__gui(shape).img), y + _HEIGHT(__gui(shape).img)), , B , &B0101010101010101
+    _FONT 8
+    _PRINTMODE _FILLBACKGROUND
+    COLOR _RGB32(0), _RGB32(255, 255, 0)
+    xp = __g.mouse.x - (_PRINTWIDTH(_TRIM$(__gui(shape).toolTip)) / 2): IF xp < 0 THEN xp = 0
+    _PRINTSTRING (xp, __g.mouse.y - 16), _TRIM$(__gui(shape).toolTip)
+    _PRINTMODE _KEEPBACKGROUND
   END IF
-  _DEST __guiImg(cGUI_MOUSE)
-  LINE (x, y)-(x + _WIDTH(__guiImg(shape)), y + _HEIGHT(__guiImg(shape))), _RGB32(shape, 0, 0), BF
+  _DEST __gui(cGUI_MOUSE).img
+  LINE (x, y)-(x + _WIDTH(__gui(shape).img), y + _HEIGHT(__gui(shape).img)), _RGB32(shape, 0, 0), BF
   _DEST 0
 END SUB
 
