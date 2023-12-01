@@ -34,6 +34,7 @@ TYPE tGLOBALS
   font AS tFONT
   status AS LONG
   txtFileName AS STRING * 512
+  maxSpeed AS LONG
   speed AS LONG
   currentWord AS LONG
   avgWordLength AS SINGLE
@@ -144,13 +145,13 @@ SUB controlFlow (dly AS SINGLE)
     IF TIMER(.001) - __g.time > dly THEN
       DO
         __g.currentWord = __g.currentWord + 1
+        IF __g.currentWord > UBOUND(__words) THEN
+          __g.status = _TOGGLEBIT(__g.status, cPAUSE)
+          __g.currentWord = 0
+        END IF
       LOOP UNTIL LEN(stringOnLine$(__fileText, __words(), __g.currentWord)) > 0
       __g.time = TIMER(.001)
     END IF
-  END IF
-  IF __g.currentWord > UBOUND(__words) THEN
-    __g.status = _TOGGLEBIT(__g.status, cPAUSE)
-    __g.currentWord = 0
   END IF
 END SUB
 
@@ -578,9 +579,9 @@ END FUNCTION
 
 SUB initGui
   __gui(cGUI_EXIT).img = _LOADIMAGE(_CWD$ + "/Assets/exit.png", 32): __gui(cGUI_EXIT).toolTip = "Quit"
-  __gui(cGUI_NEXT).img = _LOADIMAGE(_CWD$ + "/Assets/next.png", 32): __gui(cGUI_NEXT).toolTip = "Next Word"
+  __gui(cGUI_NEXT).img = _LOADIMAGE(_CWD$ + "/Assets/next.png", 32): __gui(cGUI_NEXT).toolTip = "Next Sentence"
   __gui(cGUI_PAUSE).img = _LOADIMAGE(_CWD$ + "/Assets/pause.png", 32): __gui(cGUI_PAUSE).toolTip = "Pause"
-  __gui(cGUI_PREVIOUS).img = _LOADIMAGE(_CWD$ + "/Assets/previous.png", 32): __gui(cGUI_PREVIOUS).toolTip = "Previous Word"
+  __gui(cGUI_PREVIOUS).img = _LOADIMAGE(_CWD$ + "/Assets/previous.png", 32): __gui(cGUI_PREVIOUS).toolTip = "Previous Sentence"
   __gui(cGUI_REWIND).img = _LOADIMAGE(_CWD$ + "/Assets/rewind.png", 32): __gui(cGUI_REWIND).toolTip = "Slower"
   __gui(cGUI_PLAY).img = _LOADIMAGE(_CWD$ + "/Assets/right.png", 32): __gui(cGUI_PLAY).toolTip = "Play"
   __gui(cGUI_LOAD).img = _LOADIMAGE(_CWD$ + "/Assets/disk.png", 32): __gui(cGUI_LOAD).toolTip = "Load"
