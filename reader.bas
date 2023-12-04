@@ -1,11 +1,11 @@
 '$dynamic
 OPTION _EXPLICIT
+$RESIZE:OFF
 
 TYPE tTXTSEGMENT
   start AS LONG
   finish AS LONG
 END TYPE
-
 
 TYPE tMOUSE
   x AS LONG
@@ -30,19 +30,32 @@ TYPE tGUICONTROL
   toolTip AS STRING * 32
 END TYPE
 
+TYPE tSCREEN
+  hdl AS LONG
+  mHdl AS LONG
+  w AS LONG
+  h AS LONG
+  bpp AS INTEGER
+  foreColor AS LONG
+  backColor AS LONG
+END TYPE
+
 TYPE tGLOBALS
   font AS tFONT
   status AS LONG
   txtFileName AS STRING * 512
-  maxSpeed AS LONG
-  speed AS LONG
+  maxSpeed AS SINGLE
+  speed AS SINGLE
   currentWord AS LONG
   avgWordLength AS SINGLE
   time AS SINGLE
+  fps AS LONG
+  fpsCount AS LONG
+  scanTime AS SINGLE
   mouse AS tMOUSE
   os AS LONG
-  foreColor AS LONG
-  backColor AS LONG
+  scrn AS tSCREEN
+  darkOffset AS LONG
 END TYPE
 
 CONST cPAUSE = 0
@@ -61,32 +74,34 @@ CONST cGUI_SAVE = 7
 CONST cGUI_LOAD = 8
 CONST cGUI_UP = 9
 CONST cGUI_DOWN = 10
-CONST cGUI_MOUSE = 11
 CONST cGUI_FF = 12
 CONST cGUI_FCOLOR = 13
 CONST cGUI_BCOLOR = 14
 CONST cGUI_FONT_SIZE_INCREASE = 15
 CONST cGUI_FONT_SIZE_DECREASE = 16
 CONST cGUI_FONT_CHANGE = 17
+CONST cGUI_DARK_ICON = 20
 
 DIM SHARED AS tGLOBALS __g ' Global Variables
 DIM SHARED AS STRING __fileText
 DIM SHARED AS tTXTSEGMENT __words(0)
-DIM SHARED AS tGUICONTROL __gui(20)
+DIM SHARED AS tGUICONTROL __gui(50)
 
 
 main
 
 SUB main STATIC
+  DIM AS LONG t1
   OSStuff
+  t1 = _FREETIMER
+  ON TIMER(t1, 1) resetFPS
+  TIMER(t1) ON
 
-  SCREEN _NEWIMAGE(1024, 768, 32)
+  setDefaults
+  initGui
+  loadState
   _TITLE "Reader"
   _PRINTMODE _KEEPBACKGROUND
-
-  initGui
-  setDefaults
-  loadState
 
   IF NOT _FILEEXISTS("reader.cfg") THEN
     _MESSAGEBOX "Reader App", "Please open a text file for reading. This only needs to be done once.", "info"
@@ -116,30 +131,60 @@ SUB main STATIC
 
   DIM AS STRING w
   DIM AS SINGLE dly, estDly
+  DIM AS LONG temp
+  temp = _RESIZE
 
   DO
-    CLS , __g.backColor
-    handleInput __g.currentWord, __g.speed
+    CLS , __g.scrn.backColor
+    handleInput __g.currentWord
+
+    IF __g.speed < __g.maxSpeed THEN
+      __g.speed = __g.speed + .5
+    END IF
+    IF __g.speed > __g.maxSpeed THEN
+      __g.speed = __g.speed - .5
+    END IF
+
     w = stringOnLine$(__fileText, __words(), __g.currentWord)
     estDly = (__g.avgWordLength * (20 / __g.speed)) + (60 / __g.speed)
     dly = (lenUnicode(w) * (20 / __g.speed)) + (60 / __g.speed)
     IF _READBIT(__g.status, cPAUSE) THEN printInfo estDly
+
     printWord w
     controlFlow dly
     drawGUI
+
     _DISPLAY
   LOOP
 END SUB
 
 SUB setDefaults
-  __g.backColor = _RGB32(32, 32, 32)
-  __g.foreColor = _RGB32(255, 255, 255)
+  __g.scrn.w = 1024
+  __g.scrn.h = 768
+  reSizeScreen
+  __g.scrn.backColor = _RGB32(32, 32, 32)
+  __g.scrn.foreColor = _RGB32(255, 255, 255)
+  __g.darkOffset = 0
   __g.font.size = 120
-  __g.speed = 600
+  __g.maxSpeed = 600
   __g.time = TIMER(.001)
 END SUB
 
+SUB reSizeScreen
+  DIM AS LONG temp
+  IF __g.scrn.hdl < -1 THEN
+    temp = _COPYIMAGE(__g.scrn.hdl, 32)
+    SCREEN temp
+    _FREEIMAGE __g.scrn.hdl
+    _FREEIMAGE __g.scrn.mHdl
+  END IF
+  __g.scrn.hdl = _NEWIMAGE(__g.scrn.w, __g.scrn.h, 32)
+  __g.scrn.mHdl = _NEWIMAGE(__g.scrn.w, __g.scrn.h, 32)
+  SCREEN __g.scrn.hdl
+END SUB
+
 SUB controlFlow (dly AS SINGLE)
+  __g.fpsCount = __g.fpsCount + 1
   IF NOT _READBIT(__g.status, cPAUSE) THEN
     'skip empty words
     IF TIMER(.001) - __g.time > dly THEN
@@ -152,6 +197,8 @@ SUB controlFlow (dly AS SINGLE)
       LOOP UNTIL LEN(stringOnLine$(__fileText, __words(), __g.currentWord)) > 0
       __g.time = TIMER(.001)
     END IF
+  ELSE
+    __g.speed = 0
   END IF
 END SUB
 
@@ -165,15 +212,15 @@ SUB printInfo (dly AS SINGLE)
     title = MID$(title, _INSTRREV(title, "\") + 1)
   END IF
   avg = (avg + dly) / 2
-  _FONT 14
+  _FONT 14: COLOR __g.scrn.foreColor, __g.scrn.backColor
   _PRINTSTRING ((_WIDTH / 2) - (_PRINTWIDTH(title) / 2), 0), title
-  info = "Progress:" + STR$(INT((__g.currentWord / UBOUND(__words)) * 100)) + "%  Current Word:" + STR$(__g.currentWord) + " out of " + STR$(UBOUND(__words)) + ". WPM:" + STR$(INT(60 / avg))
+  info = "Speed:" + STR$(__g.maxSpeed) + "  Progress:" + STR$(INT((__g.currentWord / UBOUND(__words)) * 100)) + "%  Current Word:" + STR$(__g.currentWord) + " out of " + STR$(UBOUND(__words)) + ". WPM:" + STR$(INT(60 / avg)) + "  FPS:" + STR$(__g.fps)
   _PRINTSTRING ((_WIDTH / 2) - (_PRINTWIDTH(info) / 2), 20), info
 
 END SUB
 
 SUB printWord (w AS STRING)
-  _FONT getArrayLong(__g.font.handle, __g.font.size): COLOR __g.foreColor
+  _FONT getArrayLong(__g.font.handle, __g.font.size): COLOR __g.scrn.foreColor
   printUnicode w, (_WIDTH / 2) - (widthUnicode(w) / 2), (_HEIGHT / 2) - (_FONTHEIGHT / 2)
 END SUB
 
@@ -181,23 +228,28 @@ SUB drawGUI
   DIM AS LONG guiPx, guiPy
   guiPx = _WIDTH / 2 - (_WIDTH(__gui(cGUI_PLAY).img) / 2)
   guiPy = _HEIGHT - 160
-  drawGuiButton cGUI_PREVIOUS, guiPx - 100, guiPy
-  IF _READBIT(__g.status, cPAUSE) THEN
-    drawGuiButton cGUI_PLAY, guiPx, guiPy
-    drawGuiButton cGUI_FCOLOR, 10, _HEIGHT - 32
-    drawGuiButton cGUI_BCOLOR, 42, _HEIGHT - 32
-    drawGuiButton cGUI_FONT_CHANGE, 74, _HEIGHT - 32
-    drawGuiButton cGUI_FONT_SIZE_DECREASE, 174, _HEIGHT - 32
-    drawGuiButton cGUI_FONT_SIZE_INCREASE, 206, _HEIGHT - 32
-    drawGuiButton cGUI_LOAD, guiPx - 300, guiPy
+  ' if the background is too white switch the icons to black
+  IF _RED32(__g.scrn.backColor) > 220 AND _GREEN32(__g.scrn.backColor) > 220 AND _BLUE32(__g.scrn.backColor) > 220 THEN
+    __g.darkOffset = cGUI_DARK_ICON
   ELSE
-    drawGuiButton cGUI_PAUSE, guiPx, guiPy
+    __g.darkOffset = 0
   END IF
-  drawGuiButton cGUI_NEXT, guiPx + 100, guiPy
-  drawGuiButton cGUI_FF, guiPx + 200, guiPy
-  drawGuiButton cGUI_REWIND, guiPx - 200, guiPy
-  drawGuiButton cGUI_EXIT, _WIDTH - 120, guiPy
-
+  drawGuiButton __g.darkOffset + cGUI_PREVIOUS, guiPx - 100, guiPy
+  IF _READBIT(__g.status, cPAUSE) THEN
+    drawGuiButton __g.darkOffset + cGUI_PLAY, guiPx, guiPy
+    drawGuiButton __g.darkOffset + cGUI_FCOLOR, 10, _HEIGHT - 32
+    drawGuiButton __g.darkOffset + cGUI_BCOLOR, 42, _HEIGHT - 32
+    drawGuiButton __g.darkOffset + cGUI_FONT_CHANGE, 74, _HEIGHT - 32
+    drawGuiButton __g.darkOffset + cGUI_FONT_SIZE_DECREASE, 174, _HEIGHT - 32
+    drawGuiButton __g.darkOffset + cGUI_FONT_SIZE_INCREASE, 206, _HEIGHT - 32
+    drawGuiButton __g.darkOffset + cGUI_LOAD, guiPx - 300, guiPy
+  ELSE
+    drawGuiButton __g.darkOffset + cGUI_PAUSE, guiPx, guiPy
+  END IF
+  drawGuiButton __g.darkOffset + cGUI_NEXT, guiPx + 100, guiPy
+  drawGuiButton __g.darkOffset + cGUI_FF, guiPx + 200, guiPy
+  drawGuiButton __g.darkOffset + cGUI_REWIND, guiPx - 200, guiPy
+  drawGuiButton __g.darkOffset + cGUI_EXIT, _WIDTH - 120, guiPy
 END SUB
 
 SUB OSStuff
@@ -233,16 +285,16 @@ SUB clearFonts
   NEXT
 END SUB
 
-SUB handleInput (indx AS LONG, sp AS LONG)
+SUB handleInput (indx AS LONG)
   DIM AS LONG k, p, c
   DIM AS STRING temp
   k = _KEYHIT
   _KEYCLEAR
   IF k = 32 THEN __g.status = _TOGGLEBIT(__g.status, cPAUSE)
-  IF k = 18432 THEN sp = sp + 50
-  IF k = 20480 THEN sp = sp - 50
-  IF sp > 1600 THEN sp = 1600
-  IF sp < 200 THEN sp = 200
+  IF k = 18432 THEN __g.maxSpeed = __g.maxSpeed + 50
+  IF k = 20480 THEN __g.maxSpeed = __g.maxSpeed - 50
+  IF __g.maxSpeed > 1600 THEN __g.maxSpeed = 1600
+  IF __g.maxSpeed < 200 THEN __g.maxSpeed = 200
 
   IF k = 19200 THEN __g.status = _SETBIT(__g.status, cPAUSE): indx = prevSentence(__fileText, __words(), indx)
   IF k = 19712 THEN __g.status = _SETBIT(__g.status, cPAUSE): indx = nextSentence(__fileText, __words(), indx)
@@ -268,14 +320,13 @@ SUB handleInput (indx AS LONG, sp AS LONG)
 
   IF k = ASC("1") THEN
     __g.status = _SETBIT(__g.status, cPAUSE)
-    c = _COLORCHOOSERDIALOG("Select a textcolor", __g.foreColor)
-    IF c <> 0 AND c <> __g.backColor THEN __g.foreColor = c
+    changeTextColor
+    '_MESSAGEBOX("Change Icon Color", "Do you want to change?", "yesno", "question")
   END IF
 
   IF k = ASC("2") THEN
     __g.status = _SETBIT(__g.status, cPAUSE)
-    c = _COLORCHOOSERDIALOG("Select a background color", __g.backColor)
-    IF c <> 0 AND c <> __g.foreColor THEN __g.backColor = c
+    changeBackgroundColor
   END IF
 
 
@@ -291,11 +342,12 @@ SUB handleInput (indx AS LONG, sp AS LONG)
     __g.mouse.b1 = _MOUSEBUTTON(1)
   LOOP
   __g.mouse.b1PE = __g.mouse.b1 AND NOT __g.mouse.b1L
-  _SOURCE __gui(cGUI_MOUSE).img
+  _SOURCE __g.scrn.mHdl
   p = _RED32(POINT(__g.mouse.x, __g.mouse.y))
   __g.mouse.hover = p
-  _SOURCE 0
+  _SOURCE __g.scrn.hdl
   IF __g.mouse.b1PE THEN
+    IF __g.darkOffset > 0 THEN p = p - cGUI_DARK_ICON
     SELECT CASE p
       CASE cGUI_EXIT
         savePlace __g.txtFileName, indx: saveState: SYSTEM
@@ -306,11 +358,9 @@ SUB handleInput (indx AS LONG, sp AS LONG)
       CASE cGUI_PREVIOUS
         __g.status = _SETBIT(__g.status, cPAUSE): indx = prevSentence(__fileText, __words(), indx)
       CASE cGUI_REWIND
-        sp = sp - 50
+        __g.maxSpeed = __g.maxSpeed - 50
       CASE cGUI_PLAY
         __g.status = _TOGGLEBIT(__g.status, cPAUSE)
-        'CASE cGUI_SAVE
-        '  __g.status = _SETBIT(__g.status, cPAUSE): savePlace __g.txtFileName, indx
       CASE cGUI_LOAD
         temp = _OPENFILEDIALOG$("Open Text File", "", "*.txt", "Text files", -1)
         IF _TRIM$(temp) <> "" THEN
@@ -324,15 +374,13 @@ SUB handleInput (indx AS LONG, sp AS LONG)
       CASE cGUI_UP
       CASE cGUI_DOWN
       CASE cGUI_FF
-        sp = sp + 50
+        __g.maxSpeed = __g.maxSpeed + 50
       CASE cGUI_FCOLOR
         __g.status = _SETBIT(__g.status, cPAUSE)
-        c = _COLORCHOOSERDIALOG("Select a textcolor", __g.foreColor)
-        IF c <> 0 AND c <> __g.backColor THEN __g.foreColor = c
+        changeTextColor
       CASE cGUI_BCOLOR
         __g.status = _SETBIT(__g.status, cPAUSE)
-        c = _COLORCHOOSERDIALOG("Select a background color", __g.backColor)
-        IF c <> 0 AND c <> __g.foreColor THEN __g.backColor = c
+        changeBackgroundColor
       CASE cGUI_FONT_SIZE_INCREASE
         increaseFontSize
       CASE cGUI_FONT_SIZE_DECREASE
@@ -348,6 +396,18 @@ SUB handleInput (indx AS LONG, sp AS LONG)
         END IF
     END SELECT
   END IF
+END SUB
+
+SUB changeTextColor
+  DIM c AS LONG
+  c = _COLORCHOOSERDIALOG("Select the text color", __g.scrn.foreColor)
+  IF c <> 0 AND c <> __g.scrn.backColor THEN __g.scrn.foreColor = c
+END SUB
+
+SUB changeBackgroundColor
+  DIM c AS LONG
+  c = _COLORCHOOSERDIALOG("Select the background color", __g.scrn.backColor)
+  IF c <> 0 AND c <> __g.scrn.foreColor THEN __g.scrn.backColor = c
 END SUB
 
 SUB increaseFontSize
@@ -595,22 +655,49 @@ SUB initGui
   __gui(cGUI_FONT_CHANGE).img = _LOADIMAGE(_CWD$ + "/Assets/fontChange.png", 32): __gui(cGUI_FONT_CHANGE).toolTip = "Change Font"
 
   IF __gui(cGUI_EXIT).img > -2 THEN PRINT "Did not load images!": END
-
-  __gui(cGUI_MOUSE).img = _NEWIMAGE(_WIDTH, _HEIGHT, 32)
+  createDarkIcons
 END SUB
+
+SUB createDarkIcons
+  DIM AS LONG iter, i, j, pc
+  FOR iter = 0 TO cGUI_DARK_ICON
+    IF __gui(iter).img < -1 THEN
+      __gui(iter + cGUI_DARK_ICON).img = _NEWIMAGE(_WIDTH(__gui(iter).img), _HEIGHT(__gui(iter).img), 32)
+      __gui(iter + cGUI_DARK_ICON).toolTip = __gui(iter).toolTip
+      FOR j = 0 TO _HEIGHT(__gui(iter).img)
+        FOR i = 0 TO _WIDTH(__gui(iter).img)
+          _SOURCE __gui(iter).img
+          _DEST __gui(iter + cGUI_DARK_ICON).img
+          pc = POINT(i, j)
+          IF ABS(_RED32(pc) - _BLUE32(pc)) < 20 AND ABS(_BLUE32(pc) - _GREEN32(pc)) < 20 AND _ALPHA32(pc) = 255 THEN ' shade of white or black
+            PSET (i, j), _RGB32(255 - _RED32(pc), 255 - _GREEN(pc), 255 - _BLUE32(pc))
+          ELSE
+            PSET (i, j), pc
+          END IF
+        NEXT
+      NEXT
+    END IF
+  NEXT
+  _SOURCE 0
+  _DEST 0
+END SUB
+
 
 SUB saveState
   OPEN "reader.cfg" FOR OUTPUT AS #1
   PRINT #1, "txtfile="; _TRIM$(__g.txtFileName)
-  PRINT #1, "speed="; __g.speed
+  PRINT #1, "speed="; __g.maxSpeed
   PRINT #1, "fontname="; _TRIM$(__g.font.fontName)
   PRINT #1, "fontsize="; __g.font.size
-  PRINT #1, "forecolor="; __g.foreColor
-  PRINT #1, "backcolor="; __g.backColor
+  PRINT #1, "screenXSize="; __g.scrn.w
+  PRINT #1, "screenYSize="; __g.scrn.h
+  PRINT #1, "forecolor="; __g.scrn.foreColor
+  PRINT #1, "backcolor="; __g.scrn.backColor
   CLOSE #1
 END SUB
 
 SUB loadState
+  DIM AS _BYTE resize
   DIM AS STRING in, param, arg
   IF _FILEEXISTS("reader.cfg") THEN
     OPEN "reader.cfg" FOR INPUT AS #1
@@ -628,7 +715,7 @@ SUB loadState
             breakTextSpace __fileText, __words()
             __g.currentWord = loadPlace(__g.txtFileName)
           CASE "speed"
-            __g.speed = VAL(arg)
+            __g.maxSpeed = VAL(arg)
           CASE "fontname"
             IF _TRIM$(arg) <> "" THEN
               IF _FILEEXISTS(_TRIM$(arg)) THEN
@@ -642,20 +729,27 @@ SUB loadState
           CASE "fontsize"
             __g.font.size = VAL(arg)
           CASE "forecolor"
-            __g.foreColor = VAL(arg)
+            __g.scrn.foreColor = VAL(arg)
           CASE "backcolor"
-            __g.backColor = VAL(arg)
+            __g.scrn.backColor = VAL(arg)
+          CASE "screenXSize"
+            IF VAL(arg) <> __g.scrn.w THEN resize = -1
+            __g.scrn.w = VAL(arg)
+          CASE "screenYSize"
+            IF VAL(arg) <> __g.scrn.h THEN resize = -1
+            __g.scrn.h = VAL(arg)
         END SELECT
       END IF
     LOOP
     CLOSE #1
+    IF resize THEN reSizeScreen
   END IF
 END SUB
 
 
 SUB drawGuiButton (shape AS LONG, x AS LONG, y AS LONG)
   DIM AS LONG xp
-  _PUTIMAGE (x, y), __gui(shape).img, 0
+  _PUTIMAGE (x, y), __gui(shape).img, __g.scrn.hdl
   IF __g.mouse.hover = shape THEN
     LINE (x, y)-(x + _WIDTH(__gui(shape).img), y + _HEIGHT(__gui(shape).img)), , B , &B0101010101010101
     _FONT 8
@@ -665,9 +759,9 @@ SUB drawGuiButton (shape AS LONG, x AS LONG, y AS LONG)
     _PRINTSTRING (xp, __g.mouse.y - 16), _TRIM$(__gui(shape).toolTip)
     _PRINTMODE _KEEPBACKGROUND
   END IF
-  _DEST __gui(cGUI_MOUSE).img
+  _DEST __g.scrn.mHdl
   LINE (x, y)-(x + _WIDTH(__gui(shape).img), y + _HEIGHT(__gui(shape).img)), _RGB32(shape, 0, 0), BF
-  _DEST 0
+  _DEST __g.scrn.hdl
 END SUB
 
 FUNCTION getArrayLong& (s AS STRING, p AS LONG)
@@ -678,5 +772,9 @@ SUB setArrayLong (s AS STRING, p AS LONG, v AS LONG)
   IF p > 0 AND p * 4 + 4 < LEN(s) THEN MID$(s, p * 4) = MKL$(v)
 END SUB
 
-
+SUB resetFPS
+  __g.fps = __g.fpsCount
+  __g.fpsCount = 0
+  __g.scanTime = 1.0 / __g.fps
+END SUB
 
